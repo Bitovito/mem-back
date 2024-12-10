@@ -1,0 +1,9 @@
+{
+  "python.analysis.autoImportCompletions": true,
+  "files.associations": {
+    "*.py": "python",
+    "*.ipynb": "python",
+    "*toml": "poetry"
+  },
+  "python.languageServer": "Pylance"
+}

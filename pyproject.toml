@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "mem-back"
+version = "0.1.0"
+description = ""
+authors = ["Bitovito <vicente.alvarez.aguayo@gmail.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.10"
+langchain-text-splitters = "^0.3.0"
+bs4 = "^0.0.2"
+langchain-openai = "^0.2.2"
+langchain = "^0.3.3"
+langchain-community = "^0.3.2"
+langchain-core = "^0.3.10"
+langchain-qdrant = "^0.1.4"
+requests = "^2.32.3"
+langgraph = "^0.2.38"
+typing-extensions = "^4.12.2"
+fastapi = {extras = ["standard"], version = "^0.115.2"}
+uvicorn = "^0.32.0"
+langserve = "^0.3.0"
+pyvo = "^1.5.3"
+pandas = "^2.2.3"
+annotated-types = "^0.7.0"
+certifi = "^2024.8.30"
+langchain-tools = "^0.1.34"
+langsmith = "^0.1.142"
+matplotlib = "^3.9.2"
+
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.5"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
