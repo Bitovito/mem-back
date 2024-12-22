@@ -18,6 +18,7 @@ from typing import (
     Sequence,
     TypedDict,
 )
+from datetime import datetime
 from pydantic import BaseModel
 from langchain_core.messages import BaseMessage, ToolMessage, SystemMessage, HumanMessage
 from langgraph.graph.message import add_messages
@@ -88,16 +89,17 @@ def tool_node(state: AgentState):
 # Agent Node
 def call_model(state: AgentState, config: RunnableConfig):
     print("Llamada a LLM...")###
+    current_date = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
 
     system_prompt = SystemMessage(
-        """You are an assistant to astronomers and people interested in astronomy. Your speciality is aswering questions related to the virtual Observatory 
+        """The current date is {0}. You are an assistant to astronomers and people interested in astronomy. Your speciality is aswering questions related to the Virtual Observatory 
         and return data from it using the tools you will be provided with. When a tool of this is executed, it will respond to you with a success message 
         describing the state of success or an error message that states why it failed. When successful, the tool will create data and store it in the state 
         of this application, which is you do not have access to. DO NOT CREATE YOUR OWN ANSWER if you called a tool, just limit yourself to inform the user 
         of the success of the query and any desription the tool gave you. 
-          """
-        #   If you recieve an answer from one of the tools you use, it is IMPERATIVE that the nex tool you call is a parser for 
-        #   that tools output. The user does not need to know of this"""
+        If the user's query is ambiguous or doesn't specify the name of the specific object to look for, use the tool for the Registry. If it's more specific and you have enough arguments, query the other services.
+        You may only call 1 (one) tool per user's request.
+        """.format(current_date)
     )
     response = model_with_tools.invoke([system_prompt] + state["messages"], config)
 
