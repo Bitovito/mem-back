@@ -19,17 +19,20 @@ from typing import (
     TypedDict,
 )
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from langchain_core.messages import BaseMessage, ToolMessage, SystemMessage, HumanMessage
+from langchain.prompts import PromptTemplate
 from langgraph.graph.message import add_messages
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 # from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, END
+from langchain import hub
+from langchain_core.output_parsers import StrOutputParser
 from typing import Optional
 from .data_types import RegistryResponseParser, ImageResponseParser, VoToolResponse
-from .custom_tools import get_registry, query_sia, query_ssa, query_scs, query_sla
+from .custom_tools import get_registry, query_sia, query_ssa, query_scs, query_sla, retriever_tool
 
 
 class AgentState(TypedDict):
@@ -46,7 +49,7 @@ memory = MemorySaver()
 structured_classes = []
 
 # tools = [get_registry, RegistryResponseParser, query_sia, ImageResponseParser, query_ssa, query_scs, query_sla]
-tools = [get_registry, query_sia, query_ssa, query_scs, query_sla]
+tools = [get_registry, query_sia, query_ssa, query_scs, query_sla, retriever_tool]
 
 model_with_tools = model.bind_tools(tools, tool_choice="auto")
 
@@ -61,6 +64,84 @@ for tool in tools:
         tools_by_name[tool.name] = tool
 
 # tools_by_name = {tool.name: tool for tool in tools}
+
+def grade_documents(state) -> Literal["generate", "rewrite"]:
+    print("---CHECK RELEVANCE---")
+    
+    class grade(BaseModel):
+        """Binary score for relevance check."""
+        binary_score: str = Field(description="Relevance score 'yes' or 'no'")
+
+    # LLM
+    model = ChatOpenAI(temperature=0, model="gpt-4-0125-preview", streaming=True)
+
+    # LLM with structured output
+    llm_with_structured_output = model.with_structured_output(grade)
+
+    # Prompt
+    prompt = PromptTemplate(
+        template="""You are a grader assessing relevance of a retrieved document to a user question. \n 
+        Here is the retrieved document: \n\n {context} \n\n
+        Here is the user question: {question} \n
+        If the document contains keyword(s) or semantic meaning related to the user question, grade it as relevant. \n
+        Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question.""",
+        input_variables=["context", "question"],
+    )
+
+    # Chain
+    chain = prompt | llm_with_structured_output
+
+    messages = state["messages"]
+    question = messages[0].content
+    docs = messages[-1].content
+    scored_result = chain.invoke({"question": question, "context": docs})
+    score = scored_result.binary_score
+
+    if score == "yes":
+        print("---DECISION: DOCS RELEVANT---")
+        return "generate"
+
+    else:
+        print("---DECISION: DOCS NOT RELEVANT---")
+        print(score)
+        return "rewrite"
+
+def rewrite(state):
+    print("---TRANSFORM QUERY---")
+    question = state["messages"][0].content
+    msg = [
+        HumanMessage(
+            content=f""" \n 
+    Look at the input and try to reason about the underlying semantic intent / meaning. \n 
+    Here is the initial question:
+    \n ------- \n
+    {question} 
+    \n ------- \n
+    Formulate an improved question: """,
+        )
+    ]
+    
+    model = ChatOpenAI(temperature=0, model="gpt-4-0125-preview", streaming=True)
+    response = model.invoke(msg)
+    return {"messages": [response]}
+
+def generate(state):
+    print("---GENERATE---")
+    messages = state["messages"]
+    question = messages[0].content
+    docs = messages[-1].content
+    # Prompt
+    prompt = hub.pull("rlm/rag-prompt")
+    # LLM
+    llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0, streaming=True)
+    # Post-processing
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
+    # Chain
+    rag_chain = prompt | llm | StrOutputParser()
+    # Run
+    response = rag_chain.invoke({"context": docs, "question": question})
+    return {"messages": [response]}
 
 
 # Tool Node
@@ -92,12 +173,13 @@ def call_model(state: AgentState, config: RunnableConfig):
     current_date = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
 
     system_prompt = SystemMessage(
-        """The current date is {0}. You are an assistant to astronomers and people interested in astronomy. Your speciality is aswering questions related to the Virtual Observatory 
-        and return data from it using the tools you will be provided with. When a tool of this is executed, it will respond to you with a success message 
-        describing the state of success or an error message that states why it failed. When successful, the tool will create data and store it in the state 
-        of this application, which is you do not have access to. DO NOT CREATE YOUR OWN ANSWER if you called a tool, just limit yourself to inform the user 
-        of the success of the query and any desription the tool gave you. 
-        If the user's query is ambiguous or doesn't specify the name of the specific object to look for, use the tool for the Registry. If it's more specific and you have enough arguments, query the other services.
+        """The current date is {0}. You are an assistant to astronomers and people interested in astronomy. Your speciality is aswering questions related to the Virtual Observatory, by 
+        either answering questions about it (using the retriever tool) or returning data and information from it's services using the VO tools you will be provided with. When a VO tool 
+        is executed, it will respond to you with a success message describing the state of success or an error message that states why it failed. When successful, the VO tool will create 
+        data and store it in the state of this application, which you do not have access to. DO NOT CREATE YOUR OWN ANSWER if you called a VO tool, just limit yourself to inform the user 
+        of the success of the query and any desription the VO tool gave you. 
+        If the user's query is ambiguous or doesn't specify the name of the specific object to look for, use the VO tool for the Registry. If it's more specific and you have enough arguments, 
+        query the other services using the other VO tools.
         You may only call 1 (one) tool per user's request.
         """.format(current_date)
     )
@@ -110,30 +192,6 @@ def call_model(state: AgentState, config: RunnableConfig):
         return {"messages": [response], "last_tool_called": last_tool_called}
     #####
     return {"messages": [response]}
-
-
-# async def respond(state: AgentState):
-#     print(f"Estructurando respuesta...")###
-
-#     match state["last_tool_called"]:
-#         case "RegistryResponseParser":
-#             response = RegistryResponseParser(**state["messages"][-1].tool_calls[0]["args"])
-#         case "ImageResponseParser":
-#             print(f"A ver los args de la imagen: {state['messages'][-1].tool_calls[0]['args']}")
-#             response = ImageResponseParser(**state["messages"][-1].tool_calls[0]["args"])
-#         case _:
-#             print("Esta función no requiere reestructuramiento: " + state["last_tool_called"] )### Debería distinguir entre mensajes simples y de herramienta.
-#             response = state["messages"][-1]
-
-#     reqToolMsg = ToolMessage(
-#         content=response,
-#         name=state["last_tool_called"],
-#         tool_call_id=state["messages"][-1].tool_calls[0]["id"],
-#     )
-
-#     print("Final structured response:", response)###
-#     return {"messages": [reqToolMsg],
-#             "final_response": response}
 
 
 # Conditional edge; determines whether to continue or not
@@ -156,7 +214,10 @@ def route_to(state: AgentState) -> Literal["tools", "__end__"]:
 workflow = StateGraph(AgentState)
 workflow.add_node("agent", call_model)
 workflow.add_node("tools", tool_node)
-# workflow.add_node("respond", respond)
+
+workflow.add_node("rewrite", rewrite)
+workflow.add_node("generate", generate)
+
 workflow.set_entry_point("agent")
 
 workflow.add_conditional_edges(
@@ -164,7 +225,7 @@ workflow.add_conditional_edges(
     route_to,
     {
         "tools": "tools",
-        # "respond": "respond",
+        "retrieve": "retrieve",
         END: END
     }
 )
@@ -212,33 +273,3 @@ async def get_response(msg_input, config):
     
     # return msgs[-1]
 
-
-# # Interactuar con el agente
-# # I need resources of 'white dwarf' in the 'UV' waveband
-# config = {"configurable": {"thread_id": "1"}}
-
-# while True:
-#     new_input = input("> ")
-#     if new_input == "quit":
-#         break
-#     for event in graph.stream(
-#         {"messages": [("user", new_input)],"last_tool_called": "None"}, config, stream_mode="updates"):
-#         for node, values in event.items():
-#             print(f"Receiving update from node: '{node}'")
-#             if node == 'tools':
-#                 print(values["messages"][-1].name)
-#                 continue
-#             print(values)
-#             print("\n\n")
-
-# from IPython.display import Image, display
-# from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod, NodeStyles
-
-# display(
-#     Image(
-#         graph.get_graph().draw_mermaid_png(
-#             draw_method=MermaidDrawMethod.API,
-#             output_file_path="./new_artifact_graph.png"
-#         )
-#     )
-# )

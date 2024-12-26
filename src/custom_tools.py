@@ -1,4 +1,5 @@
 from langchain_core.tools import InjectedToolArg, tool
+from langchain.tools.retriever import create_retriever_tool
 import pyvo as vo
 from pprint import pprint
 from pyvo import registry
@@ -9,6 +10,7 @@ from astropy.coordinates import SkyCoord
 from astropy.units import Quantity
 from astropy.time import Time
 from .data_types import RegistryConstraints, RegistryResponse, SIAResponse, VoResource, VoImage, VoToolResponse, srvs, wavebands, ISO8601_date
+from .retriever import retriever
 
 
 @tool(args_schema=RegistryConstraints)
@@ -296,6 +298,12 @@ def query_sla(wavelength: List[float], unit: Optional[str]='meter', url: Optiona
 #    """
 #    """
 #    return
+
+retriever_tool = create_retriever_tool(
+   retriever,
+   "retrieve_scientific_documents",
+   "Search for (mainly) Virtual Observatory realted information, either to compliment your answers or to better understand what the user is asking you to search for. This tool is not to be confused with the tools to search the Virtual Observatory itself"
+)
 
 # print(get_registry.invoke({"words": "any", "service": "any", "name": "any"}))
 # print(query_sia.name)
