@@ -31,7 +31,8 @@ from langgraph.graph import StateGraph, END
 from langchain import hub
 from langchain_core.output_parsers import StrOutputParser
 from typing import Optional
-from .data_types import RegistryResponseParser, ImageResponseParser, VoToolResponse
+from langgraph.prebuilt import ToolNode
+from .data_types import VoToolResponse
 from .custom_tools import get_registry, query_sia, query_ssa, query_scs, query_sla, retriever_tool
 
 
@@ -166,6 +167,7 @@ def tool_node(state: AgentState):
             "last_tool_called": outputs[-1].name,
             "tool_data": last_tool_results}
 
+retrieve = ToolNode([retriever_tool])
 
 # Agent Node
 def call_model(state: AgentState, config: RunnableConfig):
@@ -215,6 +217,7 @@ workflow = StateGraph(AgentState)
 workflow.add_node("agent", call_model)
 workflow.add_node("tools", tool_node)
 
+workflow.add_node("retrieve", retrieve)
 workflow.add_node("rewrite", rewrite)
 workflow.add_node("generate", generate)
 
@@ -229,12 +232,20 @@ workflow.add_conditional_edges(
         END: END
     }
 )
-
+# Edges taken after the `retrieve` node is called.
+workflow.add_conditional_edges(
+    "retrieve",
+    # Assess agent decision
+    grade_documents,
+)
+workflow.add_edge("generate", END)
+workflow.add_edge("rewrite", "agent")
 
 workflow.add_edge("tools", "agent")
 # workflow.add_edge("respond", END)
 
 graph = workflow.compile(checkpointer=memory)# Este es el agente final
+# graph.get_graph().draw_mermaid_png(output_file_path="rag_artifact_graph.png")
 
 ######################################################################
 

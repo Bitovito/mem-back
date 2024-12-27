@@ -1,42 +1,42 @@
 [
   {
     "url": "https://ivoa.net/deployers/intro_to_vo_concepts.html",
-    "is_loaded": false
+    "is_loaded": true
   },
   {
     "url": "https://ivoa.net/documents/SAMP/20120411/REC-SAMP-1.3-20120411.html",
-    "is_loaded": false
+    "is_loaded": true
   },
   {
     "url": "https://ivoa.net/documents/VOTable/20191021/REC-VOTable-1.4-20191021.html",
-    "is_loaded": false
+    "is_loaded": true
   },
   {
     "url": "https://ivoa.net/documents/REC/DAL/ConeSearch-20080222.html",
-    "is_loaded": false
+    "is_loaded": true
   },
   {
     "url": "https://ivoa.net/documents/SIA/20151223/index.html",
-    "is_loaded": false
+    "is_loaded": true
   },
   {
     "url": "https://ivoa.net/documents/SLAP/20101209/REC-SLAP-1.0-20101209.pdf",
-    "is_loaded": false
+    "is_loaded": true
   },
   {
     "url": "https://ivoa.net/documents/SSA/20120210/REC-SSA-1.1-20120210.htm",
-    "is_loaded": false
+    "is_loaded": true
   },
   {
     "url": "https://ivoa.net/documents/TAP/20190927/REC-TAP-1.1.html",
-    "is_loaded": false
+    "is_loaded": true
   },
   {
     "url": "https://ivoa.net/documents/ADQL/20231215/REC-ADQL-2.1.html",
-    "is_loaded": false
+    "is_loaded": true
   },
   {
     "url": "https://ivoa.net/documents/IVOAArchitecture/20241114/EN-IVOAArchitecture-2.1-20241114.html",
-    "is_loaded": false
+    "is_loaded": true
   }
 ]
