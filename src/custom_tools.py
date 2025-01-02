@@ -9,7 +9,7 @@ from typing_extensions import Annotated
 from astropy.coordinates import SkyCoord
 from astropy.units import Quantity
 from astropy.time import Time
-from .data_types import RegistryConstraints, RegistryResponse, SIAResponse, VoResource, VoImage, VoToolResponse, srvs, wavebands, ISO8601_date
+from .data_types import RegistryConstraints, RegistryResponse, SIAResponse, VoImageResource, VoResource, VoImage, VoToolResponse, srvs, wavebands, ISO8601_date
 from .retriever import retriever
 
 
@@ -53,7 +53,6 @@ def get_registry(words: list[str],
       modes = list(resources.getrecord(i).access_modes())
       urls = resources.getrecord(i).access_url
       votable.append(VoResource(**table_res, access_modes=modes, access_urls=urls))# access_modes()
-      count-=1
 
    print(f"Cantidad de resources a enviar al usuario: ({len(votable)})")###
 
@@ -65,8 +64,8 @@ def get_registry(words: list[str],
 
 @tool(parse_docstring=True)
 def query_sia(position: str, unit: Optional[str] = 'deg', area: Optional[float] = 0.5, url: Optional[str] = None) -> SIAResponse:
-   """This function is for retriving images. Execute it when the user requests an image.
-   More specifically, this function queries a specified resource with the Simple Image Access protocol to retrieve an image taken by a telescope of a region or an object in space. It takes in the position and size of an area in the skydome (what we see when we look into space) and the url of a resource that may contain records and images of this area.
+   """This function is for retriving image resources. Execute it when the user requests images or visual or graphic data.
+   More specifically, this function queries a specified resource with the Simple Image Access protocol to retrieve an image or FITS file whose data was obtained by a telescope of a region or an object in space. It takes in the position and size of an area in the skydome (what we see when we look into space) and the url of a resource that may contain records and images of this area.
    
    Args:
       position: The particular name of an astronomical object. A function will parse it into sky coordinates. It is crucial that the name is a 'particular' name and not a generic 'type of object'.
@@ -80,11 +79,7 @@ def query_sia(position: str, unit: Optional[str] = 'deg', area: Optional[float] 
 
    print("Llamada a query_sia...")
 
-   # pos = SkyCoord.from_name('Eta Carina')
-   # size = Quantity(0.5, unit="deg")
-   # sia_service = vo.dal.SIAService('https://cda.harvard.edu/cxcsiap/queryImages?')
    if url is None:
-      # votable = get_registry([position], service='sia')###<---- USE .INVOKE
       reg_results = registry.search(servicetype="sia")
       votable = reg_results.to_table()
       if len(votable) == 0:
@@ -102,24 +97,39 @@ def query_sia(position: str, unit: Optional[str] = 'deg', area: Optional[float] 
    for ref in urls:
       try:
          sia_service = vo.dal.SIAService(ref)
-         sia_results = sia_service.search(pos=pos, size=size, format="graphic")
+         sia_results = sia_service.search(pos=pos, size=size)
          if len(sia_results) == 0:
             print(f"No hay imagenes para '{position}' en {ref}")
          else:
+            response = SIAResponse(
+               semantic_response = f"Se encontraron {len(sia_results)} imágenes en {ref}.",
+               data_response = []
+            )
+            count = 0
             for rec in sia_results:
-               reply = f"Imagen encontrada en {ref}: {rec.title, rec.format, rec.filesize}"
-               print(reply)
-               response = SIAResponse(
-                  semantic_response = reply, 
-                  data_response = VoImage(title=rec.title, link=rec.acref, format=rec.format, filesize=rec.filesize)
+               if count > 100:
+                  break
+               response.data_response.append(
+                  VoImageResource(
+                     title = str(rec.title),
+                     format = str(rec.format),
+                     filesize = rec.filesize,
+                     url = str(rec.acref),
+                     instrument = str(rec.instr),
+                     position = rec.pos.to_string(),
+                     bandpass = str(rec.bandpass_id) if rec.bandpass_id is not None else None,
+                     bandpass_reference = f"{rec.bandpass_refvalue} [{rec.bandpass_unit}]" if rec.bandpass_id is not None else None,
+                     bandpass_range = f"({rec.bandpass_lolimit}, {rec.bandpass_hilimit})" if rec.bandpass_id is not None else None
+                  )
                )
-               return response
-            
+               count+=1
+            return response
+         
       except Exception as e:
          print(f"Error en la query a sia_service: {e}")
          continue
       
-   return SIAResponse(semantic_response = f"No available image data could match the given constraints:\nposition: {pos}\narea size: {size}\nformat: 'graphics'")
+   return SIAResponse(semantic_response = f"No available image data could match the given constraints:\nposition: {pos}\narea size: {size}")
 
 @tool(parse_docstring=True)
 def query_ssa(position: str, diameter: Optional[float]=0.1, band: Optional[tuple] = None, time: Optional[tuple] = None, url: Optional[str] = None) -> VoToolResponse:
