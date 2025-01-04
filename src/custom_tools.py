@@ -3,7 +3,7 @@ from langchain.tools.retriever import create_retriever_tool
 import pyvo as vo
 from pprint import pprint
 from pyvo import registry
-from typing import List, Optional
+from typing import Dict, List, Optional
 from pydantic import StringConstraints
 from typing_extensions import Annotated
 from astropy.coordinates import SkyCoord
@@ -11,7 +11,7 @@ from astropy.units import Quantity
 from astropy.time import Time
 from .data_types import RegistryConstraints, RegistryResponse, SIAResponse, VoImageResource, VoResource, VoImage, VoToolResponse, srvs, wavebands, ISO8601_date
 from .retriever import retriever
-
+import random
 
 @tool(args_schema=RegistryConstraints)
 def get_registry(words: list[str], 
@@ -26,7 +26,7 @@ def get_registry(words: list[str],
    or if the request of the user doesn't specify from which service should you pull this information, use this tool.
    
    Returns:
-      A JSON serializable object that contains a smenatic response for the Agent to read and pure data that is given straight to the user.
+      A JSON serializable object that contains a semnatic response for the Agent to read and pure data that is given straight to the user.
    """
 
    args = {"keywords":words if words[0] != "None" else None, "servicetype":service, "waveband":waveband, "author":author, "ivoid":ivoid, "temporal":Time(temporal) if temporal is not None else None}
@@ -63,6 +63,59 @@ def get_registry(words: list[str],
    return response
 
 @tool(parse_docstring=True)
+def get_img(astro_object: str) -> VoToolResponse:
+   """Use this function when the user asks to be shown an (any) image of a specific astronomical object. This function returns a random image that is realted to said astronomical object. 
+   Do not confuse this function with the 'query_sia' function, which is more complete and returns a set of resources of graphical and FITS data.
+
+   Args:
+      object: The name of the astronomical object or event the user requests an image of.
+
+   Returns:
+      A JSON serializable object that contains a semantic response for the Agent to read and an object that contains the properties of the image, as well as the link.
+   """
+
+   print("Llamada a get_img...")
+
+   reg_results = registry.search(servicetype="sia")
+   votable = reg_results.to_table()
+   if len(votable) == 0:
+      return VoToolResponse(semantic_response = f"No available resources could match the given constraints:\nwords: '{astro_object}'\nservice: 'sia'")
+   urls = votable["access_urls"]
+   random.shuffle(urls)
+   
+   try:
+      pos = SkyCoord.from_name(astro_object)
+   except:
+      return VoToolResponse(semantic_response = f"Sky Coord was not able to find coordinates for the name {astro_object}.")
+   size = Quantity(0.5,'deg')
+
+   for ref in urls:
+      try:
+         sia_service = vo.dal.SIAService(ref)
+         sia_results = sia_service.search(pos=pos, size=size, format="graphic")
+         if len(sia_results) == 0:
+            print(f"No hay imagenes para '{astro_object}' en {ref}")
+         else:            
+            resource = sia_results.getrecord(random.randint(0, len(sia_results)))
+            response = VoToolResponse(
+               semantic_response = f"Image of name {resource.title} on format {resource.format} and size {resource.filesize} found in {resource.acref}.",
+               data_response = VoImage(
+                  title = str(resource.title),
+                  format = str(resource.format),
+                  filesize = resource.filesize,
+                  url = str(resource.acref)
+               )
+            )
+            return response
+         
+      except Exception as e:
+         print(f"Error en la query a sia_service: {e}")
+         continue
+      
+   return VoToolResponse(semantic_response = f"No available image data could match the given constraints:\nposition: {pos}\narea size: {size}")
+
+
+@tool(parse_docstring=True)
 def query_sia(position: str, unit: Optional[str] = 'deg', area: Optional[float] = 0.5, url: Optional[str] = None) -> SIAResponse:
    """This function is for retriving image resources. Execute it when the user requests images or visual or graphic data.
    More specifically, this function queries a specified resource with the Simple Image Access protocol to retrieve an image or FITS file whose data was obtained by a telescope of a region or an object in space. It takes in the position and size of an area in the skydome (what we see when we look into space) and the url of a resource that may contain records and images of this area.
@@ -74,7 +127,7 @@ def query_sia(position: str, unit: Optional[str] = 'deg', area: Optional[float] 
       url: (optional) url of the service to query
 
    Returns:
-      The return is a dictionary. The keys correspond to the url where the image may be found and the values are the name, file type and size of the image.
+      A JSON serializable object that contains a semantic response for the Agent to read and a list of resources to get data from. The later is only ever shown to the user.
    """
 
    print("Llamada a query_sia...")
