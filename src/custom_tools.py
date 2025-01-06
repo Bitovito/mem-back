@@ -78,8 +78,6 @@ def get_img(astro_object: str) -> VoToolResponse:
 
    reg_results = registry.search(servicetype="sia")
    votable = reg_results.to_table()
-   if len(votable) == 0:
-      return VoToolResponse(semantic_response = f"No available resources could match the given constraints:\nwords: '{astro_object}'\nservice: 'sia'")
    urls = votable["access_urls"]
    random.shuffle(urls)
    
@@ -135,8 +133,6 @@ def query_sia(position: str, unit: Optional[str] = 'deg', area: Optional[float] 
    if url is None:
       reg_results = registry.search(servicetype="sia")
       votable = reg_results.to_table()
-      if len(votable) == 0:
-         return SIAResponse(semantic_response = f"No available resources could match the given constraints:\nwords: '{position}'\nservice: 'sia'")
       urls = votable["access_urls"]
    else:
       urls = [url]
@@ -196,6 +192,9 @@ def query_ssa(position: str, diameter: Optional[float]=0.1, band: Optional[tuple
       band: (optional) The bandwidth range the data needs to match, assuming meters
       time: (optional) The datetime range  the data needs to match
       url: (optional) The url of the resource to be queried. If none provided, the position will be used as keywords to search the registry
+      
+   Returns:
+      A JSON serializable object that contains a semantic response for the Agent to read and a list of resources to get data from. The later is only ever shown to the user.
    """
    try:
       sky_pos = SkyCoord.from_name(position)
@@ -207,8 +206,6 @@ def query_ssa(position: str, diameter: Optional[float]=0.1, band: Optional[tuple
    if url is None:
       ssa_services = vo.regsearch(servicetype='ssa')
       votable = ssa_services.to_table()
-      if len(votable) == 0:
-         return VoToolResponse(semantic_response = f"No available resources could match the given constraints:\nwords: '{position}'\nservice: 'ssa'")
       urls = votable["access_urls"]
    else:
       urls = [url]
@@ -254,6 +251,9 @@ def query_scs(position: str, radius: Optional[float]=0.1, url: Optional[str] = N
       position: The 'particular' name of the astronomical object that represents the center of the circular search region where the resource data must lie within to match the constraint. This value must not be a 'type' of astronomical object, but the specific name. The area of this region is described by the radius.
       radius: Radius of the circular search region.
       url: (optional) The url of the resource to be queried. If none provided, the position will be used as keywords to search the registry.
+      
+   Returns:
+      A JSON serializable object that contains a semantic response for the Agent to read and a list of resources to get data from. The later is only ever shown to the user.
    """
 
    try:
@@ -265,8 +265,6 @@ def query_scs(position: str, radius: Optional[float]=0.1, url: Optional[str] = N
    if url is None:
       scs_services = vo.regsearch(servicetype='conesearch')
       votable = scs_services.to_table()
-      if len(votable) == 0:
-         return VoToolResponse(semantic_response = f"No available resources could match the given constraints:\nwords: '{position}'\nservice: 'ssa'")
       urls = votable["access_urls"]
    else:
       urls = [url]
@@ -311,6 +309,9 @@ def query_sla(wavelength: List[float], unit: Optional[str]='meter', url: Optiona
    Args:
       wavelength: Pair of floats that describe a wavelength range, . The results of the query to the serviec lie within this range.
       url: (optional) The url of the resource to be queried. If none provided, the position will be used as keywords to search the registry.
+      
+   Returns:
+      A JSON serializable object that contains a semantic response for the Agent to read and a list of resources to get data from. The later is only ever shown to the user.
    """
 
    waverange = Quantity(wavelength, unit=unit)
@@ -318,8 +319,6 @@ def query_sla(wavelength: List[float], unit: Optional[str]='meter', url: Optiona
    if url is None:
       sla_services = vo.regsearch(servicetype='line')
       votable = sla_services.to_table()
-      if len(votable) == 0:
-         return VoToolResponse(semantic_response = f"No available resources could match the given constraints:\nbandwith range = {waverange}\nservice: 'sla'")
       urls = votable["access_urls"]
    else:
       urls = [url]
