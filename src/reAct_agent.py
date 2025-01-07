@@ -47,24 +47,13 @@ model = ChatOpenAI(model="gpt-4o-mini")
 
 memory = MemorySaver()
 
-structured_classes = []
-
-# tools = [get_registry, RegistryResponseParser, query_sia, ImageResponseParser, query_ssa, query_scs, query_sla]
-tools = [get_registry, query_sia, query_ssa, query_scs, query_sla, retriever_tool]
+tools = [get_registry, query_sia, query_ssa, query_scs, query_sla]
 
 model_with_tools = model.bind_tools(tools, tool_choice="auto")
 
 tools_by_name = {}
 for tool in tools:
-    #####
-    if inspect.isclass(tool):
-        tools_by_name[tool.__name__] = tool
-        structured_classes.append(tool.__name__)
-    #####    
-    else:
-        tools_by_name[tool.name] = tool
-
-# tools_by_name = {tool.name: tool for tool in tools}
+    tools_by_name[tool.name] = tool
 
 def grade_documents(state) -> Literal["generate", "rewrite"]:
     print("---CHECK RELEVANCE---")
@@ -156,8 +145,8 @@ def tool_node(state: AgentState):
         outputs.append(
             ToolMessage(
                 content = json.dumps(tool_result.semantic_response) if isinstance(tool_result, VoToolResponse) else json.dumps(tool_result),
-                name=tool_call["name"],
-                tool_call_id=tool_call["id"]
+                name = tool_call["name"],
+                tool_call_id = tool_call["id"]
             )
         )
         if isinstance(tool_result, VoToolResponse):
@@ -189,15 +178,15 @@ def call_model(state: AgentState, config: RunnableConfig):
 
     print(f"Respuesta completa del modelo:\n{response}")###
     #####
-    if hasattr(response, "tool_calls") and len(response.tool_calls) != 0:
-        last_tool_called = response.tool_calls[-1]['name']
-        return {"messages": [response], "last_tool_called": last_tool_called}
+    # if hasattr(response, "tool_calls") and len(response.tool_calls) != 0:
+    #     last_tool_called = response.tool_calls[-1]['name']
+    #     return {"messages": [response], "last_tool_called": last_tool_called}
     #####
     return {"messages": [response]}
 
 
 # Conditional edge; determines whether to continue or not
-def route_to(state: AgentState) -> Literal["tools", "__end__"]:
+def route_to(state: AgentState) -> Literal["tools", "retrieve", "__end__"]:
     print("Calculando siguiente nodo...")###
 
     messages = state["messages"]
@@ -208,7 +197,10 @@ def route_to(state: AgentState) -> Literal["tools", "__end__"]:
     # if len(last_message.tool_calls) == 1 and state["last_tool_called"] in structured_classes:
     #     return "respond"
     if len(last_message.tool_calls) > 0:
+        if last_message.tool_calls[-1]["name"] == "retrieve_scientific_documents":
+            return "retrieve"
         return "tools"
+    
     else:
         return "__end__"
 
@@ -242,7 +234,6 @@ workflow.add_edge("generate", END)
 workflow.add_edge("rewrite", "agent")
 
 workflow.add_edge("tools", "agent")
-# workflow.add_edge("respond", END)
 
 graph = workflow.compile(checkpointer=memory)# Este es el agente final
 # graph.get_graph().draw_mermaid_png(output_file_path="rag_artifact_graph.png")
@@ -255,14 +246,7 @@ async def get_response(msg_input, config):
     final_state = await graph.ainvoke({
         "messages": [("human", msg_input)],
         "last_tool_called": "None"
-        }, config)
-    
-    # response = {
-    #     "AIMessage":final_state.get("final_response"),
-    #     "ToolMessage":{final_state.get("messages")[-2]}
-    # }
-    # return response
-    
+        }, config)    
     
     if final_state.get("last_tool_called") not in {None, "None", "none"}:### check condition for artifact
         return {

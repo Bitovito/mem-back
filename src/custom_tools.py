@@ -25,7 +25,7 @@ def get_registry(words: list[str],
    If you are asked to search the registry, to provide "all data related to" specific objects or type of objects, 
    or if the request of the user doesn't specify from which service should you pull this information, use this tool.
    
-   Returns:
+   return:
       A JSON serializable object that contains a semnatic response for the Agent to read and pure data that is given straight to the user.
    """
 
@@ -68,9 +68,9 @@ def get_img(astro_object: str) -> VoToolResponse:
    Do not confuse this function with the 'query_sia' function, which is more complete and returns a set of resources of graphical and FITS data.
 
    Args:
-      object: The name of the astronomical object or event the user requests an image of.
+      astro_object: The name of the astronomical object or event the user requests an image of.
 
-   Returns:
+   return:
       A JSON serializable object that contains a semantic response for the Agent to read and an object that contains the properties of the image, as well as the link.
    """
 
@@ -124,7 +124,7 @@ def query_sia(position: str, unit: Optional[str] = 'deg', area: Optional[float] 
       unit: Unit of the amount described by the area arg
       url: (optional) url of the service to query
 
-   Returns:
+   return:
       A JSON serializable object that contains a semantic response for the Agent to read and a list of resources to get data from. The later is only ever shown to the user.
    """
 
@@ -193,7 +193,7 @@ def query_ssa(position: str, diameter: Optional[float]=0.1, band: Optional[tuple
       time: (optional) The datetime range  the data needs to match
       url: (optional) The url of the resource to be queried. If none provided, the position will be used as keywords to search the registry
       
-   Returns:
+   return:
       A JSON serializable object that contains a semantic response for the Agent to read and a list of resources to get data from. The later is only ever shown to the user.
    """
    try:
@@ -252,7 +252,7 @@ def query_scs(position: str, radius: Optional[float]=0.1, url: Optional[str] = N
       radius: Radius of the circular search region.
       url: (optional) The url of the resource to be queried. If none provided, the position will be used as keywords to search the registry.
       
-   Returns:
+   return:
       A JSON serializable object that contains a semantic response for the Agent to read and a list of resources to get data from. The later is only ever shown to the user.
    """
 
@@ -301,16 +301,17 @@ def query_scs(position: str, radius: Optional[float]=0.1, url: Optional[str] = N
 
 
 @tool(parse_docstring=True)
-def query_sla(wavelength: List[float], unit: Optional[str]='meter', url: Optional[str] = None) -> VoToolResponse:
+def query_sla(wavelength: tuple[float], unit: Optional[str]='meter', url: Optional[str] = None) -> VoToolResponse:
    """
-   This tool takes in a bandwidth range and queries the VO using the Simple Line Access protocol to recover data of 
+   This tool takes in a wavelength range and queries the VO using the Simple Line Access protocol to recover data of 
    observations of elements in celestial bodies and space.
 
    Args:
-      wavelength: Pair of floats that describe a wavelength range, . The results of the query to the serviec lie within this range.
+      wavelength: Pair of floats that describe a wavelength range. The results of the query to the service lie within this range.
+      unit: The unit of the quantities that describe the wavelenght range.
       url: (optional) The url of the resource to be queried. If none provided, the position will be used as keywords to search the registry.
       
-   Returns:
+   return:
       A JSON serializable object that contains a semantic response for the Agent to read and a list of resources to get data from. The later is only ever shown to the user.
    """
 
