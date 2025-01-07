@@ -18,7 +18,7 @@ open_api_key = os.environ.get('OPENAI_API_KEY')
 collection_name = os.environ.get('QDRANT_COLLECTION_NAME')
 
 urls = []
-with open('src/documents.json', 'r+') as file:
+with open('/code/app/src/documents.json', 'r+') as file:
   data = json.load(file)
   for doc in data:
     if not doc["is_loaded"]:

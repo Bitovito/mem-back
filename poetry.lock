@@ -3267,13 +3267,13 @@ files = [
 
 [[package]]
 name = "pyvo"
-version = "1.5.3"
+version = "1.6"
 description = "Astropy affiliated package for accessing Virtual Observatory data and services"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pyvo-1.5.3-py3-none-any.whl", hash = "sha256:66d6c927e8b82a19bfc445d149f46be17aaeaba640c7236491ba5798016e702b"},
-    {file = "pyvo-1.5.3.tar.gz", hash = "sha256:fd284d0e84f52ae715e18554794cfc04fdf79ec405e18969bdb16ceaf0b1987e"},
+    {file = "pyvo-1.6-py3-none-any.whl", hash = "sha256:65740f565ffbe947c2a93aade9be905eaa3b0ab86660bb805e1beb3cc3ff4812"},
+    {file = "pyvo-1.6.tar.gz", hash = "sha256:db6ef423e6008eba1ca68459e7e2a91dbc34cbe1bda2f29f64ba57d8df570caa"},
 ]
 
 [package.dependencies]
@@ -3281,7 +3281,7 @@ astropy = ">=4.1"
 requests = "*"
 
 [package.extras]
-all = ["pillow"]
+all = ["defusedxml", "pillow"]
 docs = ["sphinx-astropy"]
 test = ["pytest-astropy", "pytest-doctestplus (>=0.13)", "requests-mock"]
 
