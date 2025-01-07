@@ -47,7 +47,7 @@ model = ChatOpenAI(model="gpt-4o-mini")
 
 memory = MemorySaver()
 
-tools = [get_registry, query_sia, query_ssa, query_scs, query_sla]
+tools = [get_registry, query_sia, query_ssa, query_scs, query_sla, retriever_tool]
 
 model_with_tools = model.bind_tools(tools, tool_choice="auto")
 

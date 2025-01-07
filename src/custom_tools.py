@@ -301,7 +301,7 @@ def query_scs(position: str, radius: Optional[float]=0.1, url: Optional[str] = N
 
 
 @tool(parse_docstring=True)
-def query_sla(wavelength: tuple[float], unit: Optional[str]='meter', url: Optional[str] = None) -> VoToolResponse:
+def query_sla(wavelength: tuple, unit: Optional[str]='meter', url: Optional[str] = None) -> VoToolResponse:
    """
    This tool takes in a wavelength range and queries the VO using the Simple Line Access protocol to recover data of 
    observations of elements in celestial bodies and space.
