@@ -9,7 +9,7 @@ from typing_extensions import Annotated
 from astropy.coordinates import SkyCoord
 from astropy.units import Quantity
 from astropy.time import Time
-from .data_types import RegistryConstraints, RegistryResponse, SIAResponse, VoImageResource, VoResource, VoImage, VoToolResponse, srvs, wavebands, ISO8601_date
+from .data_types import RegistryConstraints, RegistryResponse, SIAResponse, VoImageResource, VoResource, VoImage, VoToolResponse, srvs, wavebands, ISO8601_date, img_types
 from .retriever import retriever
 import random
 
@@ -114,12 +114,13 @@ def get_img(astro_object: str) -> VoToolResponse:
 
 
 @tool(parse_docstring=True)
-def query_sia(position: str, unit: Optional[str] = 'deg', area: Optional[float] = 0.5, url: Optional[str] = None) -> SIAResponse:
-   """This function is for retriving image resources. Execute it when the user requests images or visual or graphic data.
+def query_sia(position: str, img_type: Optional[img_types] = "all", unit: Optional[str] = 'deg', area: Optional[float] = 0.5, url: Optional[str] = None) -> SIAResponse:
+   """This function is for retriving image resources. Execute it when the user requests images (plural), visual or graphic data.
    More specifically, this function queries a specified resource with the Simple Image Access protocol to retrieve an image or FITS file whose data was obtained by a telescope of a region or an object in space. It takes in the position and size of an area in the skydome (what we see when we look into space) and the url of a resource that may contain records and images of this area.
    
    Args:
       position: The particular name of an astronomical object. A function will parse it into sky coordinates. It is crucial that the name is a 'particular' name and not a generic 'type of object'.
+      img_type: The time of graphical data to search for. It can one of: 'images', 'fits', 'all'
       area: Size of the area in which records are to be searched
       unit: Unit of the amount described by the area arg
       url: (optional) url of the service to query
@@ -134,8 +135,17 @@ def query_sia(position: str, unit: Optional[str] = 'deg', area: Optional[float] 
       reg_results = registry.search(servicetype="sia")
       votable = reg_results.to_table()
       urls = votable["access_urls"]
+      random.shuffle(urls)
    else:
       urls = [url]
+
+   match img_type:
+      case "images":
+         img_types = ["image/jpeg","image/png"]
+      case "fits":
+         img_types = ["image/fits"]
+      case "all":
+         img_types = "all"
    
    try:
       pos = SkyCoord.from_name(position)
@@ -146,7 +156,7 @@ def query_sia(position: str, unit: Optional[str] = 'deg', area: Optional[float] 
    for ref in urls:
       try:
          sia_service = vo.dal.SIAService(ref)
-         sia_results = sia_service.search(pos=pos, size=size)
+         sia_results = sia_service.search(pos=pos, size=size, format=img_types)
          if len(sia_results) == 0:
             print(f"No hay imagenes para '{position}' en {ref}")
          else:
@@ -179,6 +189,7 @@ def query_sia(position: str, unit: Optional[str] = 'deg', area: Optional[float] 
          continue
       
    return SIAResponse(semantic_response = f"No available image data could match the given constraints:\nposition: {pos}\narea size: {size}")
+
 
 @tool(parse_docstring=True)
 def query_ssa(position: str, diameter: Optional[float]=0.1, band: Optional[tuple] = None, time: Optional[tuple] = None, url: Optional[str] = None) -> VoToolResponse:

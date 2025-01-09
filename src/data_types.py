@@ -6,6 +6,8 @@ from langchain_core.tools import InjectedToolArg
 
 srvs = Literal['sia', 'sia1', 'sia2', 'ssa', 'ssap', 'scs', 'conesearch', 'line', 'tap', 'table']
 
+img_types = Literal['images', 'fits', 'all']
+
 wavebands = Literal['EUV', 'Gamma-ray', 'Infrared', 'Millimeter', 'Neutrino', 'Optical', 'Photon', 'Radio', 'UV', 'X-ray']
 
 ISO8601_date = r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?([Zz]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?'
